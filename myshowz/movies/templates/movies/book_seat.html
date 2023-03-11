@@ -1,0 +1,381 @@
+{% extends 'movies/layout.html' %}
+
+{% load static %}
+
+{% block head %}
+    <link rel="stylesheet" href="{% static 'movies/style.css' %}" />
+
+{% endblock %}
+<script>
+  document.addEventListener('DOMContentLoaded', ()=>{
+
+var movie = document.getElementById('movieName').innerHTML;
+var city = document.getElementById('cities').value;
+var day = document.getElementById('daySelect').value;
+var hall = document.getElementById('hallSelect').value;
+cost = 0;
+
+fetch(`/shows/${movie}/${city}/${day}/${hall}`)
+.then(response => response.json())
+.then(shows => {
+var i = 0;
+shows.forEach(function(show) {
+    if (show.date > show.today) {
+      document.querySelectorAll('.book')[i].href = `javascript:openModal(${show.id}, ${show.rate})`;
+      i++;
+      }
+    else if (show.date == show.today && show.time > show.current_time) {
+      document.querySelectorAll('.book')[i].href = `javascript:openModal(${show.id}, ${show.rate})`;
+      i++;
+    }
+    else {
+    }
+  });
+});
+
+
+document.querySelectorAll('.changeIsGood').forEach(item => {
+item.addEventListener('change', event => {
+  
+  var movie = document.getElementById('movieName').innerHTML;
+  var city = document.getElementById('cities').value;
+  var day = document.getElementById('daySelect').value;
+  var hall = document.getElementById('hallSelect').value;
+
+  fetch(`/shows/${movie}/${city}/${day}/${hall}`)
+  .then(response => response.json())
+  .then(shows => {
+    var table = document.getElementById("showList");
+    document.querySelectorAll('.showData').forEach(function(a){
+      a.remove()
+      });
+    shows.forEach(function(show) {
+
+      if (show.date > show.today) {
+
+        var row = table.insertRow();
+        row.className = 'showData'
+    
+        var cell1 = row.insertCell(0);
+        var cell2 = row.insertCell(1);
+        var cell3 = row.insertCell(2);
+        var cell4 = row.insertCell(3);
+        var cell5 = row.insertCell(4);
+
+        var a = document.createElement('a');
+        var link = document.createTextNode(show.time_display);  
+        a.appendChild(link);  
+        a.title = show.time_display;
+        a.className = 'book'
+        a.href = `javascript:openModal(${show.id}, ${show.rate})`;
+
+        cell1.innerHTML = show.theatre;
+        cell2.innerHTML = `${show.rate} Rs/-`;
+        cell3.innerHTML = show.hall_type;
+        cell4.appendChild(a)
+        cell5.innerHTML = show.date_display;
+      }
+
+      else if (show.date == show.today && show.time > show.current_time) {
+        var row = table.insertRow();
+        row.className = 'showData'
+    
+        var cell1 = row.insertCell(0);
+        var cell2 = row.insertCell(1);
+        var cell3 = row.insertCell(2);
+        var cell4 = row.insertCell(3);
+        var cell5 = row.insertCell(4);
+
+        var a = document.createElement('a');
+        var link = document.createTextNode(show.time_display);  
+        a.appendChild(link);  
+        a.title = show.time_display;
+        a.className = 'book'
+        a.href = `javascript:openModal(${show.id}, ${show.rate})`;
+
+        cell1.innerHTML = show.theatre;
+        cell2.innerHTML = `${show.rate} Rs/-`;
+        cell3.innerHTML = show.hall_type;
+        cell4.appendChild(a)
+        cell5.innerHTML = show.date_display;
+      }
+    });
+  });
+});
+});
+
+window.addEventListener('click', clickOutside);
+
+function clickOutside(e) {
+if(e.target == document.getElementById('simpleModal')) {
+  document.getElementById('simpleModal').style.display = 'none';
+  document.getElementById('total_seats').innerHTML = `Seats Selected: 0`
+  document.getElementById('total_cost').innerHTML = `Total Cost: 0`
+  
+}
+}
+
+document.querySelector('.container').addEventListener('click', e => {
+if ( e.target.classList.contains('seat') && !e.target.classList.contains('occupied') ) {
+  e.target.classList.toggle('selected');
+  var seatNumber = document.querySelectorAll('.container > .row > .selected');
+
+  var totalSeatCost = seatNumber.length * cost;
+  var ccost=(totalSeatCost)*100;
+  let mcost=sessionStorage.setItem("cost",ccost);
+      console.log(ccost);
+      console.log(mcost);
+  document.getElementsByClassName("original-amount").innerHTML=ccost;
+ 
+  document.getElementById('total_seats').innerHTML = `Seats Selected: ${seatNumber.length}`
+  document.getElementById('total_cost').innerHTML = `Total Cost: ${totalSeatCost} Rs/-`
+  if (seatNumber.length > 0){
+    document.getElementById('processRequest').disabled = false
+  }
+
+  else{e
+    document.getElementById('processRequest').disabled = true
+  }
+}
+});
+});
+
+function openModal(show, rate){
+cost = rate;
+document.getElementById('simpleModal').style.display = 'flex';
+
+fetch(`/seats/${show}`)
+.then(response => response.json())
+.then(seats => {
+
+  document.querySelectorAll('.container > .row').forEach(function(a){
+    a.remove();
+    });
+
+  for ([seatRow, seatsList] of Object.entries(seats)) {
+    var row = document.createElement("div");
+    row.classList.add("row");
+    row.classList.add(`${seatRow}`);
+
+    var container = document.querySelector(".container");
+    container.appendChild(row);
+
+    for ([number, vacancy] of Object.entries(seatsList)) {
+      var seat = document.createElement("div");
+      seat.classList.add("seat");
+      seat.classList.add(`${number}`);
+      if (`${vacancy}` == 'Occupied') {
+        seat.classList.add('occupied');
+      }
+
+      row.appendChild(seat);
+    }
+  }
+});
+  
+document.getElementById('bookTicketDiv').addEventListener('submit', ()=>{
+  var seatList = new Array();
+  document.querySelectorAll('.container > .row > .selected').forEach(function(a){
+    seatList.push(`${a.parentElement.classList.item(1)}${a.classList.item(1)}`);
+    });
+
+  fetch(`/ticket`, {
+    method: 'POST',
+    body: JSON.stringify({
+        show: show,
+        seatList: seatList
+    })
+  })
+});
+}
+console.log(ccost);
+</script>
+{% block body %}
+
+<div id="mainBody">
+
+    <h2 id="movieName" style="margin-left: 10px;">{{ movie.name }}</h2>
+
+    <div id="hallForm">
+
+        <div class="hallInfo">
+        <label class="movieSearchLabel" for="cities">Select City:</label>
+            <select name="cities" id="cities" class="changeIsGood">
+                    <option value="any">---Any---</option>
+                    <option value="{{ current_city }}" selected>{{ current_city }}</option>
+                {% for city in cities %}
+                    <option value="{{city.name}}">{{ city.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="hallInfo">
+            <label class="movieSearchLabel" for="daySelect">Select Date:</label>
+            <select id="daySelect" class="changeIsGood">
+                    <option value="{{ today }}" selected>{{ today }}</option>
+                {% for day in dayList %}
+                    <option value="{{ day }}">{{ day }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="hallInfo">
+        <label class="movieSearchLabel" for="daySelect">Select Hall Type:</label>
+            <select id="hallSelect" class="changeIsGood">
+                <option value="any" selected>---Any---</option>
+                <option value="2D">2D</option>
+                <option value="3D">3D</option>
+                <option value="IMAX">IMAX</option>
+                <option value="4DX">4DX</option>
+            </select>
+        </div>
+
+    </div>
+
+    <hr>
+
+    <div id = "listOfHalls" style="height: inherit; overflow-y: scroll;">
+        <table id=showList>
+            <tr>
+                <th>Theater Name</td>
+                <th>Ticket Cost</th>
+                <th>Hall Type</td>
+                <th>Time</td>
+                <th>Date</td>
+            </tr>
+
+            {% for show in shows %}
+                <tr class="showData">
+                    <td>{{ show.hall.theatre.name }}</td>
+                    <td>{{ show.rate }} Rs/-</td>
+                    <td>{{ show.hall.hall_type }}</td>
+                    <td><a href="#" class="book">{{ show.get_time_display }}</a></td>
+                    <td>{{ show.date }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div id="simpleModal" class="modal">
+
+        <div class="modalContent">
+
+            <div id = "modalInner">
+                <ul class="showcase">
+
+                    <li>
+                    <div class="seat"></div>
+                    <small>N/A</small>
+                    </li>
+
+                    <li>
+                    <div class="seat selected"></div>
+                    <small>Selected</small>
+                    </li>
+
+                    <li>
+                    <div class="seat occupied"></div>
+                    <small>Occupied</small>
+                    </li>
+
+                </ul>
+            
+                <div class="container">
+                    <div class="screen"></div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    </div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    </div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat occupied"></div>
+                    </div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    </div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    </div>
+            
+                    <div class="row">
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat occupied"></div>
+                    <div class="seat"></div>
+                    </div>
+
+                </div>
+
+                <form id="bookTicketDiv" method="GET" action="{% url 'allTickets' %}">
+                    {% csrf_token %}
+                    
+               
+                    <script src="https://checkout.razorpay.com/v1/checkout.js"  data-key="rzp_test_WGTGMBb4zvrd3s"
+                  data-amount="36000"data-currency="INR" data-order_id="{{payment.id}}" data-buttontext="BOOK SEATS"
+                    data-name="{{movie.name}}" data-description="{{movie.about}}"
+                    data-image="{{movie.poster}}" data-prefill.name="{{request.user}}" data-prefill.email="{{request.user.email}}"
+                    data-theme.color="blue" data-handler="function (response){
+                      alert(response.razorpay_payment_id);
+                      alert(response.razorpay_order_id);
+                      alert(response.razorpay_signature)
+                  }">console.log(ccost); </script>
+                </form>
+
+            </div>
+
+            <div class="seatPrice">
+                <li name="seatno" id="total_seats">Seats Selected: 0</li>
+                <li name="cost" id="total_cost">Total Cost: 0</li>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+{% endblock %}
